@@ -14,7 +14,7 @@
           </h1>
 
           <a
-            href="https://github.com/rezuankassim"
+            href="https://github.com/rezuankassim/ideker"
             target="_blank"
             class="flex h-[47px] w-[47px] items-center justify-center rounded-full p-[4px]"
           >
