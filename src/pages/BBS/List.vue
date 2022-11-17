@@ -22,9 +22,10 @@
 
             <tbody>
               <tr
-                class="group mt-3 text-sm font-semibold leading-[11px] text-[#4E5D78]"
+                class="group mt-3 text-sm font-semibold leading-[11px] text-[#4E5D78] hover:cursor-pointer"
                 v-for="row in table.getRowModel().rows"
                 :key="row.id"
+                @click="router.push(`/bbs/view/${row.original.id}`)"
               >
                 <td
                   class="py-[34px] group-hover:bg-[#F4F8FF]"
@@ -116,6 +117,7 @@ import {
 import {useHeaderStore} from '../../store/header';
 import {ChevronLeftIcon, ChevronRightIcon} from '@heroicons/vue/24/solid';
 import {computed} from '@vue/reactivity';
+import {useRouter} from 'vue-router';
 
 type BBS = {
   id: string;
@@ -124,6 +126,7 @@ type BBS = {
 };
 
 const {setHeader} = useHeaderStore();
+const router = useRouter();
 const columnHelper = createColumnHelper<BBS>();
 const pageIndex = ref<number>(0);
 const pageSize = ref<number>(10);

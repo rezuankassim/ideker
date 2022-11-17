@@ -18,6 +18,16 @@ const routes = [
     component: () => import('../pages/BBS/List.vue'),
   },
   {
+    path: '/bbs/view/:id',
+    name: 'BBS View',
+    component: () => import('../pages/BBS/View.vue'),
+  },
+  {
+    path: '/bbs/modify/:id',
+    name: 'BBS Modify',
+    component: () => import('../pages/BBS/Modify.vue'),
+  },
+  {
     path: '/members/register',
     name: 'Members Register',
     component: () => import('../pages/Members/Register.vue'),

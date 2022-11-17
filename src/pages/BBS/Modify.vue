@@ -1,8 +1,8 @@
 <template>
   <div class="rounded-[20px] bg-[#FAFBFC] px-[31px] pt-[39px] pb-[31px]">
-    <h2 class="text-lg font-semibold leading-[14px] text-[#323B4B]">Register</h2>
+    <h2 class="text-lg font-semibold leading-[14px] text-[#323B4B]">Modify</h2>
     <p class="mt-6 font-medium leading-[12px] text-[#B0B7C3]">
-      Create a new BBS record by submitting this form
+      Modify the BBS record by submitting this form
     </p>
 
     <div class="mt-[36px] rounded-[15px] bg-white px-[38px] py-[30px]">
@@ -63,7 +63,27 @@
               Files
             </label>
 
+            <div
+              v-if="
+                attachedFile &&
+                attachedFile.attachedFileInfos &&
+                Object.keys(attachedFile.attachedFileInfos).length !== 0
+              "
+              class="flex flex-col gap-y-[14px] rounded-[15px] bg-[#FAFBFC] p-[27px]"
+            >
+              <div
+                v-for="file in attachedFile.attachedFileInfos"
+                class="flex items-center justify-between rounded-[15px] bg-white px-[17px] py-[15px]"
+              >
+                <span class="font-medium text-[#4E5D78]">{{ file.filename }}</span>
+                <button type="button" @click="deleteFile(file.id, attachedFile.id)">
+                  <x-mark-icon class="h-[26px] w-[26px] text-[#C1C7D0]" />
+                </button>
+              </div>
+            </div>
+
             <file-pond
+              ref="pond"
               :files="files"
               allow-multiple
               @processfile="processFile"
@@ -98,8 +118,12 @@
 </template>
 
 <script setup lang="ts">
-import {onMounted} from 'vue';
+import {toFormValidator} from '@vee-validate/zod';
+import {onMounted, ref} from 'vue';
 import {useHeaderStore} from '../../store/header';
+import * as zod from 'zod';
+import {useField, useForm} from 'vee-validate';
+import {useRoute, useRouter} from 'vue-router';
 import vueFilePond from 'vue-filepond';
 import type {
   FilePondErrorDescription,
@@ -109,10 +133,8 @@ import type {
 } from 'filepond';
 import FilePondPluginFileValidateType from 'filepond-plugin-file-validate-type/dist/filepond-plugin-file-validate-type.esm.js';
 import 'filepond/dist/filepond.min.css';
-import {useForm, useField} from 'vee-validate';
-import {toFormValidator} from '@vee-validate/zod';
-import * as zod from 'zod';
-import {useRouter} from 'vue-router';
+import type {FilePond} from 'filepond';
+import {XMarkIcon} from '@heroicons/vue/24/solid';
 
 interface UploadFile {
   id: string;
@@ -121,8 +143,23 @@ interface UploadFile {
   fileSize: number;
   contentType: string;
 }
+type AttachedFileInfo = {
+  id: number;
+  size: number | null;
+  downloadCount: number;
+  filename: string;
+};
+type AttachedFile = {
+  id: number;
+  attachedFileInfos: AttachedFileInfo[];
+};
 
+const {setHeader} = useHeaderStore();
+const route = useRoute();
 const router = useRouter();
+const bbsId = ref('');
+const attachedFile = ref<AttachedFile>({} as AttachedFile);
+const pond = ref<FilePond | null>(null);
 
 const validationSchema = toFormValidator(
   zod.object({
@@ -132,18 +169,14 @@ const validationSchema = toFormValidator(
     content: zod.string({
       required_error: 'Content is required',
     }),
-    files: zod
-      .array(
-        zod.object({
-          filename: zod.string(),
-          originalFilename: zod.string(),
-          fileSize: zod.number(),
-          contentType: zod.string(),
-        })
-      )
-      .nonempty({
-        message: 'Files is required',
-      }),
+    files: zod.array(
+      zod.object({
+        filename: zod.string(),
+        originalFilename: zod.string(),
+        fileSize: zod.number(),
+        contentType: zod.string(),
+      })
+    ),
   })
 );
 
@@ -157,9 +190,34 @@ const {value: files} = useField<UploadFile[]>('files', undefined, {
   initialValue: [],
 });
 
+onMounted(async () => {
+  setHeader('BBS Modify');
+
+  const response = await fetch(
+    `http://idc.flexink.com:9250/api/public/bbs/post/${route.params.id}`,
+    {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+
+  if (response.status >= 200 && response.status < 300) {
+    const body = await response.json();
+    bbsId.value = body.id;
+    title.value = body.title;
+    content.value = body.content;
+    attachedFile.value = body.attachedFile;
+  } else {
+    router.push({
+      name: 'BBS List',
+    });
+  }
+});
+
 const submit = handleSubmit(async values => {
-  const response = await fetch('http://idc.flexink.com:9250/api/public/bbs/post?lang=en', {
-    method: 'POST',
+  const response = await fetch(`http://idc.flexink.com:9250/api/public/bbs/post/${bbsId.value}`, {
+    method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
     },
@@ -178,9 +236,7 @@ const submit = handleSubmit(async values => {
   });
 
   if (response.status >= 200 && response.status < 300) {
-    router.push({
-      name: 'BBS List',
-    });
+    router.push(`/bbs/view/${bbsId.value}`);
   }
 });
 
@@ -259,6 +315,7 @@ const revert: RevertServerConfigFunction = (
   load();
 };
 const processFile = (error: FilePondErrorDescription | null, file: FilePondFile) => {
+  console.log(file);
   files.value.push({
     id: file.id,
     filename: file.serverId,
@@ -270,10 +327,16 @@ const processFile = (error: FilePondErrorDescription | null, file: FilePondFile)
 const removeFile = (error: FilePondErrorDescription | null, file: FilePondFile) => {
   files.value = files.value.filter(file => file.id !== file.id);
 };
+const deleteFile = async (attachedFileInfoId: number, attachedFileId: number) => {
+  await fetch(
+    `http://idc.flexink.com:9250/api/public/bbs/post/file/${bbsId.value}/${attachedFileId}/${attachedFileInfoId}?lang=en`,
+    {
+      method: 'DELETE',
+    }
+  );
 
-const {setHeader} = useHeaderStore();
-
-onMounted(() => {
-  setHeader('BBS Register');
-});
+  attachedFile.value.attachedFileInfos = attachedFile.value.attachedFileInfos.filter(
+    file => file.id !== attachedFileInfoId
+  );
+};
 </script>
