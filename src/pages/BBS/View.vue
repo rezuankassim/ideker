@@ -111,7 +111,7 @@ onMounted(async () => {
   }
 });
 
-const deleteBBS = async (id: string) => {
+const deleteBBS = async (id: number) => {
   await fetch(`http://idc.flexink.com:9250/api/public/bbs/post/${id}`, {
     method: 'DELETE',
   });
